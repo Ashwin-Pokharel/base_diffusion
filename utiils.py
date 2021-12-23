@@ -84,9 +84,11 @@ class DiffusionModel:
         self.posterior_mean_coef2 = (1. - self.alphas_cumprod_prev) * np.sqrt(alphas) / (1. - self.alphas_cumprod)
 
 
+
     #function to get the distribution q(x_t | x_0).
     def q_mean_variance(self , x_start , t):
         """
+        Get the distribution q(x_t | x_0).
         
         :param x_start: the tensor for noiseless input (x[0] or inital image)
         :param t: the number of diffusion step-1. meaning 0 = 1 steps
@@ -139,32 +141,23 @@ class DiffusionModel:
         return posterior_mean , posterior_variance , posterior_log_variance_clipped
     
 
-
-    def p_mean_variance(self , denoise_fn , * , x , t , clip_denoised:bool , return_pred_xstart:bool):
+#get the models output for mean and variance ( this is what the nueral network is learning so it will be used in the loss function) (aka predicted outputs)
+    def p_mean_variance(self , model , * , x , t , clip_denoised:bool):
         """
         
 
-        Apply the model/denoise_fn to get p(x_{t-1} | x_t), as well as a prediction of
+        Apply the model to get p(x_{t-1} | x_t), as well as a prediction of
         the initial x, x_0.
         :param model: the model, which takes a signal and a batch of timesteps
                       as input.
         :param x: the [N x C x ...] tensor at time t.
         :param t: a 1-D Tensor of timesteps.
         :param clip_denoised: if True, clip the denoised signal into [-1, 1].
-        :param denoised_fn: if not None, a function which applies to the
-            x_start prediction before it is used to sample. Applies before
-            clip_denoised.
-        :param model_kwargs: if not None, a dict of extra keyword arguments to
-            pass to the model. This can be used for conditioning.
-        :return: a dict with the following keys:
-                 - 'mean': the model mean output.
-                 - 'variance': the model variance output.
-                 - 'log_variance': the log of 'variance'.
-                 - 'pred_xstart': the prediction for x_0.
+        :return: a tuple with (mean , variance , log_variance , pred_xstart) (last one is maybe)
         """
         B, H, W, C = x.shape
         assert t.shape == [0]
-        model_output = denoise_fn(x , t)
+        model_output = model(x , t)
         model_variance , model_log_variance = {
             ModelVarType.FIXED_SMALL : (self.posterior_variance , self.posterior_log_variance_clipped),
             ModelVarType.FIXED_LARGE : (np.append(self.posterior_variance[1], self.betas[1:]) , np.log(np.append(self.posterior_variance[1] , self.betas[1:]))
@@ -176,7 +169,7 @@ class DiffusionModel:
 
 
         
-        _maybe_clip = lambda x_: (tf.clip_by_value(x_, -1., 1.) if clip_denoised else x_)
+        _maybe_clip = lambda x_: (th.clamp(x_, -1., 1.) if clip_denoised else x_)
         if self.model_mean_type == ModelMeanType.PREVIOUS_X: #model is prediction (x_t-1 | x_t)
             pred_xstart = _maybe_clip(self._predict_xstart_from_xprev(x_t=x , t=t , xprev= model_output))
             model_mean = model_output
@@ -189,14 +182,22 @@ class DiffusionModel:
 
         assert (model_mean.shape == model_log_variance.shape == pred_xstart.shape == x.shape)
 
-        if pred_xstart:
-            return model_mean , model_variance , model_log_variance , pred_xstart
-        else:
-            return model_mean , model_variance , model_log_variance
-        
-
+        return model_mean , model_variance , model_log_variance , pred_xstart
+    
 
     def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
+        """
+        Given the x_t (noise at given step t) get the epsilon at step  t f
+
+        Args:
+            x_t ([type]): [description]
+            t ([type]): [description]
+            pred_xstart ([type]): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        
         return (
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - pred_xstart
@@ -224,8 +225,6 @@ class DiffusionModel:
         )
 #============================Sampling From the model==========================================================================================================
     
-
-
 
 
 
