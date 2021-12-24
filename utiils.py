@@ -2,6 +2,7 @@
 import math
 import numpy as np
 import torch as th
+from . import nn
 import enum 
 
 class ModelVarType(enum.Enum):
@@ -13,6 +14,10 @@ class ModelVarType(enum.Enum):
 
     FIXED_SMALL = enum.auto()
     FIXED_LARGE = enum.auto()
+
+class LossType(enum.Enum):
+    KL = enum.auto()
+    MSE = enum.auto()
 
 class ModelMeanType(enum.Enum):
     """
@@ -40,6 +45,42 @@ def kl_normal(mean1, logvar1, mean2, logvar2):
 
     return 0.5 * ( -1.0 + logvar2 - logvar1 + th.exp(logvar1 - logvar2) + ((mean2 - mean1)**2) / th.exp(logvar2))
 
+def approx_standard_normal_cdf(x):
+    """
+    A fast approximation of the cumulative distribution function of the
+    standard normal.
+    """
+    return 0.5 * (1.0 + th.tanh(np.sqrt(2.0 / np.pi) * (x + 0.044715 * th.pow(x, 3))))
+
+def discretized_gaussian_log_likelihood(x, *, means, log_scales):
+    """
+    Compute the log-likelihood of a Gaussian distribution discretizing to a
+    given image.
+    :param x: the target images. It is assumed that this was uint8 values,
+              rescaled to the range [-1, 1].
+    :param means: the Gaussian mean Tensor.
+    :param log_scales: the Gaussian log stddev Tensor.
+    :return: a tensor like x of log probabilities (in nats).
+    """
+    assert x.shape == means.shape == log_scales.shape
+    centered_x = x - means
+    inv_stdv = th.exp(-log_scales)
+    plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
+    cdf_plus = approx_standard_normal_cdf(plus_in)
+    min_in = inv_stdv * (centered_x - 1.0 / 255.0)
+    cdf_min = approx_standard_normal_cdf(min_in)
+    log_cdf_plus = th.log(cdf_plus.clamp(min=1e-12))
+    log_one_minus_cdf_min = th.log((1.0 - cdf_min).clamp(min=1e-12))
+    cdf_delta = cdf_plus - cdf_min
+    log_probs = th.where(
+        x < -0.999,
+        log_cdf_plus,
+        th.where(x > 0.999, log_one_minus_cdf_min, th.log(cdf_delta.clamp(min=1e-12))),
+    )
+    assert log_probs.shape == x.shape
+    return log_probs
+
+
 
 #get a simple linear beta schedule
 def get_linear_beta_schedule(beta_start, beta_end, num_diffusion_sets):
@@ -54,15 +95,21 @@ class DiffusionModel:
     :param beta: beta scheduler being used
     
     """
+    
+    def _scale_timesteps(self, t):
+        if self.rescale_timesteps:
+            return t.float() * (1000.0 / self.num_timesteps)
+        return t
 
 
-    def __init__(self , * , betas , model_var_type , model_mean_type):
+    def __init__(self , * , betas , model_var_type , model_mean_type, loss_type):
         self.betas = betas
         assert len(betas.shape) == 1, "betas must be a 1D"
         assert (betas > 0).all() and (betas <= 1).all()
         self.num_timesteps = int(betas.shape[0])
         self.model_var_type = model_var_type
         self.model_mean_type = model_mean_type
+        self.loss_type = loss_type
 
         alphas = 1. - betas
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
@@ -225,9 +272,208 @@ class DiffusionModel:
         )
 #============================Sampling From the model==========================================================================================================
     
+    def p_sample(self, model , x , t ,noise=None,  clip_denoised=True , denoised_fn=None):
+        """ 
+        Sample x_{t-1} from the model at the given time stamp
 
+        :param model: the model to sample from
+        "param x: the current x at x_{t-1}
+        :param t: the value of t , starts at 0 for the first diffusion step and then onward
+        :param clip_denoised: if true, clip the x_start prediction into [-1, 1].
+        :param denoised_fn: the denoising function to applied to predicted x_start before sampling
+        :return: the sampled x_t
+        """
+        #sampled form the model
+        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model , x=x , t=t , clip_denoised=clip_deoined)
+        if(noise == None):
+            noise = th.randn_like(x)
+        nonzero_mask = (
+            (t!=0).float().view(-1 , *([1]*(len(x.shape)-1)))
+        )
+        sample = model_mean + nonzero_mask * th.exp(model_log_variance) * noise
+        return sample , pred_xstart
+        
+    
+    def p_sample_loop(self , model , shape , noise=None , clip_denoised=True , denoised_fn=None , device=None , progress=False):
+        """
+        Generate samples from the model.
+        :param model: the model module.
+        :param shape: the shape of the samples, (N, C, H, W).
+        :param noise: if specified, the noise from the encoder to sample.
+                      Should be of the same shape as `shape`.
+        :param clip_denoised: if True, clip x_start predictions to [-1, 1].
+        :param denoised_fn: if not None, a function which applies to the
+            x_start prediction before it is used to sample.
+        :param device: if specified, the device to create the samples on.
+                       If not specified, use a model parameter's device.
+        :param progress: if True, show a tqdm progress bar.
+        :return: a non-differentiable batch of samples.
+        """
+        
+        final = None
+        for sample , pred_xstart in self.p_sample_loop_progressive(model , shape , noise , clip_denoised , device , progress):
+            final = sample
+        
+        return final
+    
+    
+    
+    def p_sample_loop_progressive(self , model , shape , noise=None, clip_denoised=True , denoised_fn=None , device= None, progress=False ):
+        """
+        Generate samples from the model and yield intermediate samples from
+        each timestep of diffusion.
+        Arguments are the same as p_sample_loop().
+        Returns a generator over tuple where each tuple is the return value of p_sample
+        """
+        
+        if device is None:
+            device = next(model.parameters()).device #might need to come back and take a look at this
+        
+        assert isinstance(shape , (tuple , list))
+        if noise is not None:
+            img = noise 
+        else:
+            img = th.randn(*shape , device=device)
+        
+        indices = list(range(self.num_timesteps))[::-1] #going from max_timestamp-1 to 0 aka noise to x{t_0}
+        if progress: 
+            from tqdm.auto import tqdm
+            
+            indices = tqdm(indices)
+        
+        for i in indices:
+            t = th.tensor([i]* shape, device=device)
+            with th.no_grad():
+                sample , pred_xstart = self.p_sample(model=model , x=img , t=t , noise=noise , clip_deoined=clip_denoised , denoised_fn=denoised_fn)
+                yield sample , pred_xstart
+                img = sample
+        
 
+#============================Log Liklehood sampling========================================================================================================== 
 
+    def _vb_terms_bpd(self , model , x_start , x_t , t , clip_denoised=True):
+        """
+        Get a term for the variational lower-bound
+        
+        resulting units are in bits and not nats (look at self-information)
+        
+        return - a tuple
+            - output: a shape[N] tensor of NLL or KL (divergences) to calculate the loss function
+            - pred_xstart: the x_0 predictions
+        
+        """
+        true_mean , true_variance , true_log_variance = self.q_posterior_mean_variance(model , x_start , t)
+        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model , x_start , t , clip_denoised=clip_denoised)
+        kl = kl_normal(true_mean , true_log_variance , model_mean , model_log_variance)
+        kl = nn.mean_flat(kl) / np.log(2) #convert to bits
+        
+        deconder_nll = -discretized_gaussian_log_likelihood(x_t , model_mean , 0.5 * model_log_variance)
+        assert deconder_nll.shape == x_start.shape
+        
+        output = th.where((t==0 ), deconder_nll , kl)
+        return output , pred_xstart    
+
+    
+    
+    def training_losses(self, model , x_start , t , noise=None):
+        """
+         Compute training losses for a single timestep.
+        :param model: the model to evaluate loss on.
+        :param x_start: the [N x C x ...] tensor of inputs.
+        :param t: a batch of timestep indices.
+        :param model_kwargs: if not None, a dict of extra keyword arguments to
+            pass to the model. This can be used for conditioning.
+        :param noise: if specified, the specific Gaussian noise to try to remove.
+        :return: losses containing a tensor of shape [N].
+                
+        """
+        if noise is None:
+            noise = th.randn_like(x_start)
+        
+        assert x_start.shape == noise.shape
+        x_t = self.q_sample(x_start , t , noise)
+        
+        if self.loss_type == LossType.KL:
+            loss, _  = self._vb_terms_bpd(model , x_start , x_t , t , clip_denoised=False)
+        elif self.loss_type == LossType.MSE:
+            model_output = model(x_t , self._scale_timesteps(t))
+            if self.model_var_type in [ModelVarType.FIXED_LARGE, ModelVarType.FIXED_SMALL]:
+                B, C = x_t.shape[:2]
+                assert model_output.shape == [B , C * 2 , *x_t.shape[2:]]
+                model_output , model_var_values = th.split(model_output , C , dim=1)
+                
+                output, pred_xstart = self._vb_terms_bpd(model , model_output , x_t , t , clip_denoised=False)
+                target = {
+                    ModelMeanType.PREVIOUS_X : self.q_posterior_mean_variance(x_start , x_t , t)[0],
+                    ModelMeanType.START_X: x_start,
+                    ModelMeanType.EPSILON: noise,
+                }[self.model_mean_type]              
+                assert model_output.shape == target.shape == x_start.shape
+                mse = nn.mean_flat((target - model_output)**2)
+                loss = mse 
+        else:
+            raise NotImplementedError(self.loss_type)
+    
+        return loss 
+    
+    def _prior_bpd(self , x_start):
+        """
+        Get the prior KL term for the variational lower-bound, measured in
+        bits-per-dim.
+        This term can't be optimized, as it only depends on the encoder.
+        :param x_start: the [N x C x ...] tensor of inputs.
+        :return: a batch of [N] KL values (in bits), one per batch element.
+        """  
+        batch_size = x_start.shape[0]
+        t = th.tensor([self.num_timesteps -1] * batch_size , device=x_start.device)
+        qt_mean , _ , qt_log_variance = self.q_mean_variance(x_start , t)
+        kl_prior = nn.normal_kl(qt_mean , qt_log_variance , 0 , 0)
+        return nn.mean_flat(kl_prior) / np.log(2) #convert to bits
+    
+    def calc_bpd_loop(self , model , x_start , clip_denoised=True):
+        """
+        Compute the entire variational lower-bound, measured in bits-per-dim,
+        as well as other related quantities.
+        :param model: the model to evaluate loss on.
+        :param x_start: the [N x C x ...] tensor of inputs.
+        :param clip_denoised: if True, clip denoised samples.
+        :param model_kwargs: if not None, a dict of extra keyword arguments to
+            pass to the model. This can be used for conditioning.
+        :return: a tuple containing the following quantities:
+                 - total_bpd: the total variational lower-bound, per batch element.
+                 - prior_bpd: the prior term in the lower-bound.
+                 - vb: an [N x T] tensor of terms in the lower-bound.
+                 - xstart_mse: an [N x T] tensor of x_0 MSEs for each timestep.
+                 - mse: an [N x T] tensor of epsilon MSEs for each timestep.
+        """
+        device = x_start.device
+        batch_size = x_start.shape[0]
+        
+        vb = []
+        x_start_mse = []
+        mse = []
+        for t in list(range(self.num_timesteps)[::-1]):
+            t_batch = th.tensor([t] * batch_size , device=device)
+            noise = th.randn_like(x_start)
+            x_t = self.q_sample(x_start , t_batch , noise)
+            with th.no_grad():
+                output , pred_xstart = self._vb_terms_bpd(model , x_start , x_t , t_batch , clip_denoised=clip_denoised)
+                vb.append(output)
+                x_start_mse.append(nn.mean_flat((pred_xstart - x_start)**2))
+                eps = self._predict_eps_from_xstart(x_t , t_batch , pred_xstart)
+                mse.append(nn.mean_flat((eps - noise)**2))
+            
+        vb = th.stack(vb , dim=1)
+        x_start_mse = th.stack(x_start_mse , dim=1)
+        mse = th.stack(mse , dim=1)
+        
+        prior_bpd = self._prior_bpd(x_start)
+        total_bpd = vb.sum(dim=1) + prior_bpd
+        
+        return total_bpd , prior_bpd , vb , x_start_mse , mse
+        
+        
+    
 #extract values from 1-d numpy array for a batch of indexs: 
 def _extract_into_tensor(arr, timesteps, broadcast_shape):
     """
