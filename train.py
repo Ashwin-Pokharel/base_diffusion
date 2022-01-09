@@ -84,8 +84,8 @@ if __name__ == '__main__':
     beta = utils.get_linear_beta_schedule(1000)
     diffusion = utils.DiffusionModel(betas=  beta ,model_var_type= model_var ,model_mean_type= model_mean, loss_type= loss_type)
     #print(diffusion)
-    print(model)
-    '''
+    #print(model)
+    
     data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/train/sad/"
     images = _list_image_files_recursively(data_path)
     dataloader = load_data(data_path , 1 , False)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     data = next(iter(dataloader))
     #print(data.shape)
     trainingLoop.run_step(data)
-    '''
+    
     
     
     
