@@ -1,5 +1,6 @@
 import os
-from PIL import Image
+from PIL import Image, ImageOps
+import cv2 
 import numpy as np
 import torch
 from torch.utils.data import Dataset , DataLoader
@@ -13,7 +14,7 @@ def load_data(dataset_directory,batch_size, shuffle):
     if not dataset_directory:
         raise ValueError("unspecified data directory")
     all_files = _list_image_files_recursively(dataset_directory)
-    dataset = ImageDataset(all_files , False)
+    dataset = ImageDataset(all_files)
     return DataLoader(dataset , batch_size , shuffle)
 
 
@@ -32,21 +33,27 @@ def _list_image_files_recursively(data_dir):
 
 
 class ImageDataset(Dataset):
-    def __init__(self , image_paths , tranform=False):
+    def __init__(self , image_paths):
         self.image_paths = image_paths
-        self.transform = self.transform
     
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self , index):
         path = self.image_paths[index]
-        with bf.BlobFile(path , "rb") as f:
-            img = Image.open(f)
-            img.load()
-        img = img.convert("RGB") #might need ot remove this based on the type of dataset
-        return np.array(img) #returning the numpy array version of the file
+        img = []
+        img = cv2.imread(path , cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img , (64 , 64))
+        img = img[None , :, :, ]
+        return img #returning the numpy array version of the file
 
 
-    
+if __name__ == '__main__':
+    print("at data.py ")
+    data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/train/sad/"
+    images = _list_image_files_recursively(data_path)
+    dataset = ImageDataset(images)
+    print(images[0])
+    print(dataset.__getitem__(0))
+      
 

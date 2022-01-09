@@ -1,0 +1,154 @@
+======================================================================
+Layer (type:depth-idx)                        Param #
+======================================================================
+TimeUnet                                      --
+├─Sequential: 1-1                             --
+│    └─Linear: 2-1                            66,048
+│    └─SiLU: 2-2                              --
+│    └─Linear: 2-3                            262,656
+├─ModuleList: 1-2                             --
+│    └─TimestepEmbedSequential: 2-4           --
+│    │    └─Conv2d: 3-1                       1,280
+│    └─TimestepEmbedSequential: 2-5           --
+│    │    └─ResBlock: 3-2                     361,344
+│    └─TimestepEmbedSequential: 2-6           --
+│    │    └─Downsample: 3-3                   147,584
+│    └─TimestepEmbedSequential: 2-7           --
+│    │    └─ResBlock: 3-4                     1,050,368
+│    └─TimestepEmbedSequential: 2-8           --
+│    │    └─Downsample: 3-5                   590,080
+│    └─TimestepEmbedSequential: 2-9           --
+│    │    └─ResBlock: 3-6                     2,509,568
+│    └─TimestepEmbedSequential: 2-10          --
+│    │    └─Downsample: 3-7                   1,327,488
+│    └─TimestepEmbedSequential: 2-11          --
+│    │    └─ResBlock: 3-8                     4,591,360
+│    │    └─AttentionBlock: 3-9               1,051,648
+├─TimestepEmbedSequential: 1-3                --
+│    └─ResBlock: 2-12                         --
+│    │    └─Sequential: 3-10                  2,360,832
+│    │    └─Identity: 3-11                    --
+│    │    └─Identity: 3-12                    --
+│    │    └─Sequential: 3-13                  262,656
+│    │    └─Sequential: 3-14                  2,360,832
+│    │    └─Identity: 3-15                    --
+│    └─AttentionBlock: 2-13                   --
+│    │    └─GroupNorm32: 3-16                 1,024
+│    │    └─Conv1d: 3-17                      787,968
+│    │    └─QKVAttentionLegacy: 3-18          --
+│    │    └─Conv1d: 3-19                      262,656
+│    └─ResBlock: 2-14                         --
+│    │    └─Sequential: 3-20                  2,360,832
+│    │    └─Identity: 3-21                    --
+│    │    └─Identity: 3-22                    --
+│    │    └─Sequential: 3-23                  262,656
+│    │    └─Sequential: 3-24                  2,360,832
+│    │    └─Identity: 3-25                    --
+├─ModuleList: 1-4                             --
+│    └─TimestepEmbedSequential: 2-15          --
+│    │    └─ResBlock: 3-26                    7,869,440
+│    │    └─AttentionBlock: 3-27              1,051,648
+│    └─TimestepEmbedSequential: 2-16          --
+│    │    └─ResBlock: 3-28                    7,213,824
+│    │    └─AttentionBlock: 3-29              1,051,648
+│    │    └─Upsample: 3-30                    2,359,808
+│    └─TimestepEmbedSequential: 2-17          --
+│    │    └─ResBlock: 3-31                    4,968,448
+│    └─TimestepEmbedSequential: 2-18          --
+│    │    └─ResBlock: 3-32                    3,984,896
+│    │    └─Upsample: 3-33                    1,327,488
+│    └─TimestepEmbedSequential: 2-19          --
+│    │    └─ResBlock: 3-34                    2,362,112
+│    └─TimestepEmbedSequential: 2-20          --
+│    │    └─ResBlock: 3-35                    1,706,240
+│    │    └─Upsample: 3-36                    590,080
+│    └─TimestepEmbedSequential: 2-21          --
+│    │    └─ResBlock: 3-37                    706,048
+│    └─TimestepEmbedSequential: 2-22          --
+│    │    └─ResBlock: 3-38                    541,952
+├─Sequential: 1-5                             --
+│    └─GroupNorm32: 2-23                      256
+│    └─SiLU: 2-24                             --
+│    └─Conv2d: 2-25                           1,153
+======================================================================
+Total params: 58,714,753
+Trainable params: 58,714,753
+Non-trainable params: 0
+======================================================================
+======================================================================
+Layer (type:depth-idx)                        Param #
+======================================================================
+TimeUnet                                      --
+├─Sequential: 1-1                             --
+│    └─Linear: 2-1                            66,048
+│    └─SiLU: 2-2                              --
+│    └─Linear: 2-3                            262,656
+├─ModuleList: 1-2                             --
+│    └─TimestepEmbedSequential: 2-4           --
+│    │    └─Conv2d: 3-1                       1,280
+│    └─TimestepEmbedSequential: 2-5           --
+│    │    └─ResBlock: 3-2                     361,344
+│    └─TimestepEmbedSequential: 2-6           --
+│    │    └─Downsample: 3-3                   147,584
+│    └─TimestepEmbedSequential: 2-7           --
+│    │    └─ResBlock: 3-4                     1,050,368
+│    └─TimestepEmbedSequential: 2-8           --
+│    │    └─Downsample: 3-5                   590,080
+│    └─TimestepEmbedSequential: 2-9           --
+│    │    └─ResBlock: 3-6                     2,509,568
+│    └─TimestepEmbedSequential: 2-10          --
+│    │    └─Downsample: 3-7                   1,327,488
+│    └─TimestepEmbedSequential: 2-11          --
+│    │    └─ResBlock: 3-8                     4,591,360
+│    │    └─AttentionBlock: 3-9               1,051,648
+├─TimestepEmbedSequential: 1-3                --
+│    └─ResBlock: 2-12                         --
+│    │    └─Sequential: 3-10                  2,360,832
+│    │    └─Identity: 3-11                    --
+│    │    └─Identity: 3-12                    --
+│    │    └─Sequential: 3-13                  262,656
+│    │    └─Sequential: 3-14                  2,360,832
+│    │    └─Identity: 3-15                    --
+│    └─AttentionBlock: 2-13                   --
+│    │    └─GroupNorm32: 3-16                 1,024
+│    │    └─Conv1d: 3-17                      787,968
+│    │    └─QKVAttentionLegacy: 3-18          --
+│    │    └─Conv1d: 3-19                      262,656
+│    └─ResBlock: 2-14                         --
+│    │    └─Sequential: 3-20                  2,360,832
+│    │    └─Identity: 3-21                    --
+│    │    └─Identity: 3-22                    --
+│    │    └─Sequential: 3-23                  262,656
+│    │    └─Sequential: 3-24                  2,360,832
+│    │    └─Identity: 3-25                    --
+├─ModuleList: 1-4                             --
+│    └─TimestepEmbedSequential: 2-15          --
+│    │    └─ResBlock: 3-26                    7,869,440
+│    │    └─AttentionBlock: 3-27              1,051,648
+│    └─TimestepEmbedSequential: 2-16          --
+│    │    └─ResBlock: 3-28                    7,213,824
+│    │    └─AttentionBlock: 3-29              1,051,648
+│    │    └─Upsample: 3-30                    2,359,808
+│    └─TimestepEmbedSequential: 2-17          --
+│    │    └─ResBlock: 3-31                    4,968,448
+│    └─TimestepEmbedSequential: 2-18          --
+│    │    └─ResBlock: 3-32                    3,984,896
+│    │    └─Upsample: 3-33                    1,327,488
+│    └─TimestepEmbedSequential: 2-19          --
+│    │    └─ResBlock: 3-34                    2,362,112
+│    └─TimestepEmbedSequential: 2-20          --
+│    │    └─ResBlock: 3-35                    1,706,240
+│    │    └─Upsample: 3-36                    590,080
+│    └─TimestepEmbedSequential: 2-21          --
+│    │    └─ResBlock: 3-37                    706,048
+│    └─TimestepEmbedSequential: 2-22          --
+│    │    └─ResBlock: 3-38                    541,952
+├─Sequential: 1-5                             --
+│    └─GroupNorm32: 2-23                      256
+│    └─SiLU: 2-24                             --
+│    └─Conv2d: 2-25                           1,153
+======================================================================
+Total params: 58,714,753
+Trainable params: 58,714,753
+Non-trainable params: 0
+======================================================================

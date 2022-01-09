@@ -2,7 +2,7 @@
 import math
 import numpy as np
 import torch as th
-from . import nn
+import nn
 import enum 
 
 class ModelVarType(enum.Enum):
@@ -81,9 +81,14 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     return log_probs
 
 
+def get_linear_beta_schedule(num_diffusion_steps):
+    scale = 1000/num_diffusion_steps
+    beta_start = scale * 0.0001
+    beta_end = scale * 0.02
+    return _get_linear_beta_schedule(beta_start , beta_end ,num_diffusion_steps)
 
 #get a simple linear beta schedule
-def get_linear_beta_schedule(beta_start, beta_end, num_diffusion_sets):
+def _get_linear_beta_schedule(beta_start, beta_end, num_diffusion_sets):
     return np.linspace(beta_start, beta_end, num_diffusion_sets , dtype=np.float64)
 
 
@@ -104,14 +109,14 @@ class DiffusionModel:
 
     def __init__(self , * , betas , model_var_type , model_mean_type, loss_type):
         self.betas = betas
-        assert len(betas.shape) == 1, "betas must be a 1D"
+        assert len(betas.shape) == 1, "betas must be 1-D"
         assert (betas > 0).all() and (betas <= 1).all()
         self.num_timesteps = int(betas.shape[0])
         self.model_var_type = model_var_type
         self.model_mean_type = model_mean_type
         self.loss_type = loss_type
 
-        alphas = 1. - betas
+        alphas = 1.0 - betas
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
         self.alphas_cumprod_prev = np.append(1., self.alphas_cumprod[:-1])
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
@@ -183,7 +188,7 @@ class DiffusionModel:
         posterior_mean = _extract_into_tensor(self.posterior_mean_coef1 , t , x_t.shape) * x_start + _extract_into_tensor(self.posterior_mean_coef2 , t , x_t.shape) * x_t
         posterior_variance = _extract_into_tensor(self.posterior_variance , t , x_t.shape)
         posterior_log_variance_clipped = _extract_into_tensor(self.posterior_log_variance_clipped , t , x_t.shape)
-        assert (posterior_mean.shape[0] == posterior_variance.shape[0] == posterior_log_variance_clipped[0] == x_start.shape[0])
+        assert (posterior_mean.shape[0] == posterior_variance.shape[0] == posterior_log_variance_clipped.shape[0] == x_start.shape[0])
 
         return posterior_mean , posterior_variance , posterior_log_variance_clipped
     
@@ -202,8 +207,8 @@ class DiffusionModel:
         :param clip_denoised: if True, clip the denoised signal into [-1, 1].
         :return: a tuple with (mean , variance , log_variance , pred_xstart) (last one is maybe)
         """
-        B, H, W, C = x.shape
-        assert t.shape == [0]
+        B,C = x.shape[:2]
+        assert t.shape == (B,)
         model_output = model(x , t)
         model_variance , model_log_variance = {
             ModelVarType.FIXED_SMALL : (self.posterior_variance , self.posterior_log_variance_clipped),
@@ -284,7 +289,7 @@ class DiffusionModel:
         :return: the sampled x_t
         """
         #sampled form the model
-        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model , x=x , t=t , clip_denoised=clip_deoined)
+        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model , x=x , t=t , clip_denoised=clip_denoised)
         if(noise == None):
             noise = th.randn_like(x)
         nonzero_mask = (
@@ -362,12 +367,12 @@ class DiffusionModel:
             - pred_xstart: the x_0 predictions
         
         """
-        true_mean , true_variance , true_log_variance = self.q_posterior_mean_variance(model , x_start , t)
-        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model , x_start , t , clip_denoised=clip_denoised)
+        true_mean , true_variance , true_log_variance = self.q_posterior_mean_variance( x_start, x_t , t)
+        model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model=model, x=x_t , t=t , clip_denoised=clip_denoised)
         kl = kl_normal(true_mean , true_log_variance , model_mean , model_log_variance)
         kl = nn.mean_flat(kl) / np.log(2) #convert to bits
         
-        deconder_nll = -discretized_gaussian_log_likelihood(x_t , model_mean , 0.5 * model_log_variance)
+        deconder_nll = -discretized_gaussian_log_likelihood(x_t , means=model_mean , log_scales= 0.5 * model_log_variance)
         assert deconder_nll.shape == x_start.shape
         
         output = th.where((t==0 ), deconder_nll , kl)
@@ -387,8 +392,10 @@ class DiffusionModel:
         :return: losses containing a tensor of shape [N].
                 
         """
+        print(x_start)
         if noise is None:
-            noise = th.randn_like(x_start)
+            noise = th.randint_like(x_start, th.max(x_start))
+            
         
         assert x_start.shape == noise.shape
         x_t = self.q_sample(x_start , t , noise)
@@ -471,8 +478,10 @@ class DiffusionModel:
         total_bpd = vb.sum(dim=1) + prior_bpd
         
         return total_bpd , prior_bpd , vb , x_start_mse , mse
-        
-        
+    
+    def __str__(self):
+        return ("diffusion of num_timesteps %d"%self.num_timesteps)
+            
     
 #extract values from 1-d numpy array for a batch of indexs: 
 def _extract_into_tensor(arr, timesteps, broadcast_shape):
