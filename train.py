@@ -1,6 +1,8 @@
 #This will contain the training code for the diffusion model
 import functools
 import os
+
+from numpy.lib.function_base import average
 import utils
 import model
 import nn
@@ -12,6 +14,9 @@ from functools import partial
 from torchinfo import summary
 from dataloader import _list_image_files_recursively , ImageDataset, load_data
 import cv2 as cv2
+from tqdm import tqdm , trange
+import wandb
+import warnings
 
 INITIAL_LOG_LOSS_SCALE = 20.0
 
@@ -42,10 +47,10 @@ class UniformSampler():
         return indices, weights
 
 class TrainLoop:
-    def __init__(self, model: model.TimeUnet , diffusion , data, batch_size , micro_batch,  lr , weight_decay=0.0, ) -> None:
+    def __init__(self, model: model.TimeUnet , diffusion , data, batch_size , micro_batch,  lr , weight_decay=0.0, num_epochs=10 ) -> None:
         self.model = model
         self.diffusion = diffusion
-        self.data = data
+        self.dataloader = data
         self.batch_size = batch_size
         self.microbatch = micro_batch if micro_batch > 0 else batch_size
         self.step = 0
@@ -53,7 +58,53 @@ class TrainLoop:
         self.lr = lr 
         self.weight_decay = weight_decay
         self.opt = AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        self.num_epochs = num_epochs
+        self.current_epochs = 0
+        self.running_loss = []
+        self.current_loss = None
+        self.run = wandb.init(project="diffusion_base", entity="ashwin_pokharel", reinit=True)
+        wandb.config.update({
+            "learning_rate": self.lr,
+            "weight_decay": self.weight_decay,
+            "batch_size": batch_size,
+            "num_epochs": num_epochs,
+        }) 
     
+    
+    def run_loop(self):
+        wandb.run.name = "diffusion first test run 1 epoch"
+        counter = 1
+        try:
+            with trange(self.num_epochs , position=0 , unit='epoch')as pbar:
+                for epoch in pbar:
+                    pbar.set_description(f"Epoch: {epoch}")
+                    counter = 1
+                    with tqdm(self.dataloader , position=1 , unit="images" , leave=False) as inner_bar:
+                        for value in inner_bar:
+                            self.run_step(value)
+                            inner_bar.set_description(f"# images: {counter}")
+                            counter += 1
+                            
+                    current_avg_loss = np.average(self.running_loss)        
+                    pbar.set_postfix(f"Avg Loss: {current_avg_loss}")
+                    break
+        except Exception as e:
+            print(f"error encountered in {counter}")
+            image_dataset = self.dataloader.dataset
+            data = image_dataset.__getitem__(counter-1)
+            path = image_dataset.getPath(counter-1)
+            print(f"image path: {path}" , f"data: {data}", f"data shape: {data.shape}")
+            
+            
+            raise e
+        
+        self.run.finish()
+        self.save()
+                    
+                    
+                
+                
+            
     
     def run_step(self , batch):
         self.forward_backward(batch)
@@ -65,13 +116,19 @@ class TrainLoop:
         compute_losses = partial(self.diffusion.training_losses , self.model , batch , t)
         losses = compute_losses()
         losses = (losses * weights).mean()
-        print("type of loss {0}, data {1}".format(type(losses), losses))
         losses.backward()
+        loss = losses.clone().detach()
+        self.current_loss = loss
+        self.running_loss.append(loss)
+        wandb.log({
+            "loss": losses,
+            "avg_loss": np.average(self.running_loss)
+        })
         self.opt.step()
     
     def save(self):
         model_dict = self.model_dict()
-        th.save(model_dict , "diffusion_unet")
+        th.save(model_dict , "diffusion_unet_epoch1")
        
        
         
@@ -85,14 +142,12 @@ if __name__ == '__main__':
     diffusion = utils.DiffusionModel(betas=  beta ,model_var_type= model_var ,model_mean_type= model_mean, loss_type= loss_type)
     #print(diffusion)
     #print(model)
-    
-    data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/train/sad/"
+    data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/sad_training/"
     images = _list_image_files_recursively(data_path)
     dataloader = load_data(data_path , 1 , False)
     trainingLoop = TrainLoop(model , diffusion , dataloader , 1 , 1, .001)
-    data = next(iter(dataloader))
     #print(data.shape)
-    trainingLoop.run_step(data)
+    trainingLoop.run_loop()
     
     
     

@@ -392,7 +392,6 @@ class DiffusionModel:
         :return: losses containing a tensor of shape [N].
                 
         """
-        print(x_start)
         if noise is None:
             noise = th.randint_like(x_start, th.max(x_start))
             

@@ -46,6 +46,10 @@ class ImageDataset(Dataset):
         img = cv2.resize(img , (64 , 64))
         img = img[None , :, :, ]
         return img #returning the numpy array version of the file
+    
+    def getPath(self , index):
+        path = self.image_paths[index]
+        return path
 
 
 if __name__ == '__main__':
@@ -53,7 +57,5 @@ if __name__ == '__main__':
     data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/train/sad/"
     images = _list_image_files_recursively(data_path)
     dataset = ImageDataset(images)
-    print(images[0])
-    print(dataset.__getitem__(0))
       
 
