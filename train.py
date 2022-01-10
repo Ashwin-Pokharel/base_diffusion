@@ -84,10 +84,13 @@ class TrainLoop:
                             self.run_step(value)
                             inner_bar.set_description(f"# images: {counter}")
                             counter += 1
-                            
+                    
+                    self.save_checkpoint(epoch , self.current_loss)
                     current_avg_loss = np.average(self.running_loss)        
                     pbar.set_postfix(f"Avg Loss: {current_avg_loss}")
-                    break
+                    
+                
+                    
         except Exception as e:
             print(f"error encountered in {counter}")
             image_dataset = self.dataloader.dataset
@@ -102,8 +105,17 @@ class TrainLoop:
         self.save()
                     
                     
-                
-                
+     
+               
+    def save_checkpoint(self , epoch , loss):
+        path =  f"./checkpoints/diffusion_unet_epoch_{epoch}.pt"
+        th.save({
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.opt.state_dict(),
+            'loss': loss,
+            'average_loss': self.running_loss
+        })      
             
     
     def run_step(self , batch):
@@ -128,7 +140,7 @@ class TrainLoop:
     
     def save(self):
         model_dict = self.model_dict()
-        th.save(model_dict , "diffusion_unet_epoch1")
+        th.save(model_dict , "diffusion_unet.pt")
        
        
         
