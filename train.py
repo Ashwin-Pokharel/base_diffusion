@@ -17,6 +17,7 @@ import cv2 as cv2
 from tqdm import tqdm , trange
 import wandb
 import warnings
+import logging
 
 INITIAL_LOG_LOSS_SCALE = 20.0
 
@@ -47,7 +48,7 @@ class UniformSampler():
         return indices, weights
 
 class TrainLoop:
-    def __init__(self, model: model.TimeUnet , diffusion , data, batch_size , micro_batch,  lr , weight_decay=0.0, num_epochs=10 ) -> None:
+    def __init__(self, model: model.TimeUnet , diffusion , data, batch_size , micro_batch,  lr , weight_decay=0.0, num_epochs=10, checkpoint=None , checkpoint_epoch=0 ) -> None:
         self.model = model
         self.diffusion = diffusion
         self.dataloader = data
@@ -69,14 +70,18 @@ class TrainLoop:
             "batch_size": batch_size,
             "num_epochs": num_epochs,
         }) 
+        logging.basicConfig(filename="training_log.txt", encoding='utf-8', level=logging.DEBUG)
+            
     
     
     def run_loop(self):
-        wandb.run.name = "diffusion first test run 1 epoch"
+        logging.debug("Train loop starts here")
+        wandb.run.name = "diffusion_base_training_1"
         counter = 1
         try:
             with trange(self.num_epochs , position=0 , unit='epoch')as pbar:
                 for epoch in pbar:
+                    current_epoch = 0
                     pbar.set_description(f"Epoch: {epoch}")
                     counter = 1
                     with tqdm(self.dataloader , position=1 , unit="images" , leave=False) as inner_bar:
@@ -84,21 +89,19 @@ class TrainLoop:
                             self.run_step(value)
                             inner_bar.set_description(f"# images: {counter}")
                             counter += 1
+                            if(counter % 500 == 0):
+                                current_avg_loss = np.average(self.running_loss)
+                                logging.info(f"Epoch {epoch}: {counter} images processed : average_loss is {current_avg_loss}")
                     
                     self.save_checkpoint(epoch , self.current_loss)
-                    current_avg_loss = np.average(self.running_loss)        
+                    current_avg_loss = np.average(self.running_loss)
+                    logging.info(f"Epoch #{epoch} finished, average loss is {current_avg_loss}")        
                     pbar.set_postfix(f"Avg Loss: {current_avg_loss}")
                     
                 
                     
         except Exception as e:
-            print(f"error encountered in {counter}")
-            image_dataset = self.dataloader.dataset
-            data = image_dataset.__getitem__(counter-1)
-            path = image_dataset.getPath(counter-1)
-            print(f"image path: {path}" , f"data: {data}", f"data shape: {data.shape}")
-            
-            
+            self.save_checkpoint(epoch , self.current_loss)
             raise e
         
         self.run.finish()
