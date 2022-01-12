@@ -3,7 +3,7 @@ import math
 import numpy as np
 import torch as th
 import nn
-import enum 
+import enum
 
 class ModelVarType(enum.Enum):
     """
@@ -370,12 +370,13 @@ class DiffusionModel:
         true_mean , true_variance , true_log_variance = self.q_posterior_mean_variance( x_start, x_t , t)
         model_mean , model_variance , model_log_variance , pred_xstart = self.p_mean_variance(model=model, x=x_t , t=t , clip_denoised=clip_denoised)
         kl = kl_normal(true_mean , true_log_variance , model_mean , model_log_variance)
-        kl = nn.mean_flat(kl) / np.log(2) #convert to bits
-        
+        kl = nn.mean_flat(kl) / np.log(2) #convert to bits  
         deconder_nll = -discretized_gaussian_log_likelihood(x_t , means=model_mean , log_scales= 0.5 * model_log_variance)
+        
         assert deconder_nll.shape == x_start.shape
         
         output = th.where((t==0 ), deconder_nll , kl)
+
         return output , pred_xstart    
 
     
@@ -415,7 +416,7 @@ class DiffusionModel:
                     ModelMeanType.EPSILON: noise,
                 }[self.model_mean_type]              
                 assert model_output.shape == target.shape == x_start.shape
-                mse = nn.mean_flat((target - model_output)**2)
+                mse = nn.mean_flat((target - output)**2)
                 loss = mse 
         else:
             raise NotImplementedError(self.loss_type)

@@ -1,0 +1,13 @@
+DEBUG:root:Train loop starts here
+INFO:root:Epoch 0: 500 images processed : average_loss is 542511.0625
+INFO:root:Epoch 0: 1000 images processed : average_loss is 527063.125
+INFO:root:Epoch 0: 1500 images processed : average_loss is 554180.5
+INFO:root:Epoch 0: 2000 images processed : average_loss is 570001.25
+INFO:root:Epoch 0: 2500 images processed : average_loss is 543262.25
+INFO:root:Epoch 0: 3000 images processed : average_loss is 532756.375
+INFO:root:Epoch 0: 3500 images processed : average_loss is 529368.25
+INFO:root:Epoch 0: 4000 images processed : average_loss is 534364.1875
+INFO:root:Epoch 0: 4500 images processed : average_loss is 531454.4375
+INFO:root:Epoch #0 finished, average loss is 524353.625
+DEBUG:root:Train loop starts here
+DEBUG:root:Train loop starts here

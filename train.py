@@ -70,13 +70,14 @@ class TrainLoop:
             "batch_size": batch_size,
             "num_epochs": num_epochs,
         }) 
+        
         logging.basicConfig(filename="training_log.txt", encoding='utf-8', level=logging.DEBUG)
             
     
     
     def run_loop(self):
         logging.debug("Train loop starts here")
-        wandb.run.name = "diffusion_base_training_1"
+        wandb.run.name = "diffusion_base_training_3"
         counter = 1
         try:
             with trange(self.num_epochs , position=0 , unit='epoch')as pbar:
@@ -89,14 +90,14 @@ class TrainLoop:
                             self.run_step(value)
                             inner_bar.set_description(f"# images: {counter}")
                             counter += 1
-                            if(counter % 500 == 0):
+                            if(counter % 200 == 0):
                                 current_avg_loss = np.average(self.running_loss)
                                 logging.info(f"Epoch {epoch}: {counter} images processed : average_loss is {current_avg_loss}")
                     
                     self.save_checkpoint(epoch , self.current_loss)
                     current_avg_loss = np.average(self.running_loss)
                     logging.info(f"Epoch #{epoch} finished, average loss is {current_avg_loss}")        
-                    pbar.set_postfix(f"Avg Loss: {current_avg_loss}")
+                    pbar.set_postfix({"Avg loss": current_avg_loss})
                     
                 
                     
@@ -111,14 +112,15 @@ class TrainLoop:
      
                
     def save_checkpoint(self , epoch , loss):
-        path =  f"./checkpoints/diffusion_unet_epoch_{epoch}.pt"
+        path =  "./checkpoints/diffusion_unet_epoch_{0}.pt".format(epoch)
         th.save({
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.opt.state_dict(),
             'loss': loss,
+            'batch': self.batch_size,
             'average_loss': self.running_loss
-        })      
+        } , path) 
             
     
     def run_step(self , batch):
@@ -139,6 +141,7 @@ class TrainLoop:
             "loss": losses,
             "avg_loss": np.average(self.running_loss)
         })
+        
         self.opt.step()
     
     def save(self):
@@ -159,8 +162,9 @@ if __name__ == '__main__':
     #print(model)
     data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/sad_training/"
     images = _list_image_files_recursively(data_path)
-    dataloader = load_data(data_path , 1 , False)
-    trainingLoop = TrainLoop(model , diffusion , dataloader , 1 , 1, .001)
+    batch = 1
+    dataloader = load_data(data_path , batch , False)
+    trainingLoop = TrainLoop(model , diffusion , dataloader , batch , 0 , .001)
     #print(data.shape)
     trainingLoop.run_loop()
     
