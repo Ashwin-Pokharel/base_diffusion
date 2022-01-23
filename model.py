@@ -325,7 +325,7 @@ class TimeUnet(nn.Module):
     self.num_head = num_head
     self.num_head_channels = num_head_channels
     self.num_heads_upsample = num_heads_upsample
-    self.time_embed_dim = model_channels * 4
+    self.time_embed_dim = model_channels * 4 
     self.time_embed = nn.Sequential(
       linear(self.model_channel , self.time_embed_dim ), nn.SiLU() ,
       linear(self.time_embed_dim , self.time_embed_dim))

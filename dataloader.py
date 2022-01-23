@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset , DataLoader
 import blobfile as bf
+import cv2
+import random
 
 
 
@@ -15,7 +17,7 @@ def load_data(dataset_directory,batch_size, shuffle):
         raise ValueError("unspecified data directory")
     all_files = _list_image_files_recursively(dataset_directory)
     dataset = ImageDataset(all_files)
-    return DataLoader(dataset , batch_size , shuffle)
+    return DataLoader(dataset , batch_size , shuffle, drop_last=True)
 
 
 
@@ -33,8 +35,9 @@ def _list_image_files_recursively(data_dir):
 
 
 class ImageDataset(Dataset):
-    def __init__(self , image_paths):
+    def __init__(self , image_paths, random_flip = True):
         self.image_paths = image_paths
+        self.random_flip = random_flip
     
     def __len__(self):
         return len(self.image_paths)
@@ -42,10 +45,12 @@ class ImageDataset(Dataset):
     def __getitem__(self , index):
         path = self.image_paths[index]
         img = []
-        img = cv2.imread(path , cv2.IMREAD_GRAYSCALE)
-        img = cv2.resize(img , (64 , 64))
-        img = img[None , :, :, ]
-        return img #returning the numpy array version of the file
+        img = cv2.imread(path)
+        #img = cv2.resize(img , (64 , 64))
+        if self.random_flip and random.random() < 0.5:
+            img = img[:, ::-1]
+        img = img.astype(np.float32) / 127.5 - 1
+        return np.transpose(img , [2 , 0 ,1]) #returning the numpy array version of the file
     
     def getPath(self , index):
         path = self.image_paths[index]
@@ -54,8 +59,10 @@ class ImageDataset(Dataset):
 
 if __name__ == '__main__':
     print("at data.py ")
-    data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/train/sad/"
+    data_path = "/Users/apokhar/Desktop/personal/diffusion_base/images/sad_training/"
     images = _list_image_files_recursively(data_path)
     dataset = ImageDataset(images)
+    img = dataset.__getitem__(0)
+
       
 
