@@ -11,3 +11,20 @@ INFO:root:Epoch #0 finished, average loss is 48.88901138305664
 INFO:root:Epoch #1 finished, average loss is 47.35347366333008
 INFO:root:Epoch #2 finished, average loss is 40.76274871826172
 DEBUG:root:Train loop starts here
+INFO:root:Epoch #0 finished, average loss is 35.75459671020508
+INFO:root:Epoch #1 finished, average loss is 31.913774490356445
+INFO:root:Epoch #2 finished, average loss is 25.900955200195312
+INFO:root:Epoch #3 finished, average loss is 20.417144775390625
+INFO:root:Epoch #4 finished, average loss is 15.756024360656738
+INFO:root:Epoch #5 finished, average loss is 13.160401344299316
+INFO:root:Epoch #6 finished, average loss is 9.594085693359375
+INFO:root:Epoch #7 finished, average loss is 8.41024112701416
+INFO:root:Epoch #8 finished, average loss is 6.193210601806641
+INFO:root:Epoch #9 finished, average loss is 6.341659069061279
+INFO:root:Epoch #10 finished, average loss is 4.790546417236328
+INFO:root:Epoch #11 finished, average loss is 3.721283197402954
+INFO:root:Epoch #12 finished, average loss is 3.8111445903778076
+DEBUG:root:Train loop starts here
+INFO:root:Epoch #0 finished, average loss is 5.580240726470947
+INFO:root:Epoch #1 finished, average loss is 3.495795965194702
+DEBUG:root:Train loop starts here

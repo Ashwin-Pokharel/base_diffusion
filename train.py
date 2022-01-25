@@ -67,7 +67,7 @@ class TrainLoop:
         self.current_epochs = 0
         self.running_loss = []
         self.current_loss = None
-        self.run = wandb.init(project="diffusion_base", entity="ashwin_pokharel", reinit=True)
+        self.run = wandb.init(project="diffusion_base", entity="ashwin_pokharel", reinit=True, resume=True)
         wandb.config.update({
             "learning_rate": self.lr,
             "weight_decay": self.weight_decay,
@@ -86,7 +86,7 @@ class TrainLoop:
         wandb.run.name = "diffusion_base_corrected_training__4"
         counter = 1
         try:
-            with trange(self.num_epochs-self.current_epoch , position=0 , unit='epoch')as pbar:
+            with trange(self.current_epoch , self.num_epochs, position=0 , unit='epoch')as pbar:
                 for epoch in pbar:
                     pbar.set_description(f"Epoch: {epoch}")
                     counter = 1
@@ -172,8 +172,7 @@ class TrainLoop:
        
         
 if __name__ == '__main__':
-    checkpoint_path = "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/diffusion_unet_epoch_2.pth"
-    
+    checkpoint_path = "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/diffusion_unet_epoch_12.pth"
     model =  TimeUnet(image_size=( 48 , 48) , in_channels=3 , model_channels=128, out_channels=3 , num_res_blocks=2, channel_mult=(1 , 2 , 2 , 2) , attention_resolutions=(16,), num_heads_upsample=1, dropout=0.2)
     model_var = utils.ModelVarType.FIXED_SMALL
     model_mean = utils.ModelMeanType.PREVIOUS_X
