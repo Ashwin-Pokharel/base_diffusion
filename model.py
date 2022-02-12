@@ -435,7 +435,7 @@ class TimeUnet(nn.Module):
         return self.out(h)
     except Exception as e:
         print("#"*70)
-        print(out_module)
+        print(print(e))
         print("module occured in #{0}".format(module_num))
         raise e
     

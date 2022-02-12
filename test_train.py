@@ -1,9 +1,12 @@
 from denoising_diffusion_pytorch import Unet, GaussianDiffusion, Trainer
+from torchinfo import summary
 
 model = Unet(
     dim = 64,
     dim_mults = (1, 2, 4, 8)
 )
+
+print(model)
 
 diffusion = GaussianDiffusion(
     model,
@@ -24,4 +27,5 @@ trainer = Trainer(
     fp16 = False                       # turn on mixed precision training with apex
 )
 
-trainer.train()
+
+

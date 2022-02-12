@@ -7,17 +7,26 @@ from torch.utils.data import Dataset , DataLoader
 import blobfile as bf
 import cv2
 import random
-
+from torchvision import transforms
+  
+# define custom transform
+# here we are using our calculated
+# mean & std
 
 
 #this file will be responsible for function for data loading , need to apply random transformation among other things. 
+def cycle(dl):
+    while True:
+        for data in dl:
+            yield data
+
 
 def load_data(dataset_directory,batch_size, shuffle):
     if not dataset_directory:
         raise ValueError("unspecified data directory")
     all_files = _list_image_files_recursively(dataset_directory)
     dataset = ImageDataset(all_files)
-    return DataLoader(dataset , batch_size , shuffle, drop_last=True)
+    return cycle(DataLoader(dataset , batch_size , shuffle, drop_last=True))
 
 
 
@@ -35,22 +44,27 @@ def _list_image_files_recursively(data_dir):
 
 
 class ImageDataset(Dataset):
-    def __init__(self , image_paths, random_flip = True):
+    def __init__(self , image_paths, random_flip = True, image_size=(48 , 48)):
         self.image_paths = image_paths
         self.random_flip = random_flip
+        self.image_size = image_size
+        self.transform = transforms.Compose([
+            transforms.Resize(image_size),
+            transforms.RandomHorizontalFlip(),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda t: (t * 2) - 1)
+        ])
+
     
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self , index):
         path = self.image_paths[index]
-        img = []
-        img = cv2.imread(path)
+        img = Image.open(path).convert("L")
         #img = cv2.resize(img , (64 , 64))
-        if self.random_flip and random.random() < 0.5:
-            img = img[:, ::-1]
-        img = img.astype(np.float32) / 127.5 - 1
-        return np.transpose(img , [2 , 0 ,1]) #returning the numpy array version of the file
+        return self.transform(img)
     
     def getPath(self , index):
         path = self.image_paths[index]
