@@ -325,7 +325,7 @@ class TimeUnet(nn.Module):
     self.num_head = num_head
     self.num_head_channels = num_head_channels
     self.num_heads_upsample = num_heads_upsample
-    self.time_embed_dim = model_channels * 4
+    self.time_embed_dim = model_channels * 4 
     self.time_embed = nn.Sequential(
       linear(self.model_channel , self.time_embed_dim ), nn.SiLU() ,
       linear(self.time_embed_dim , self.time_embed_dim))
@@ -435,7 +435,7 @@ class TimeUnet(nn.Module):
         return self.out(h)
     except Exception as e:
         print("#"*70)
-        print(out_module)
+        print(print(e))
         print("module occured in #{0}".format(module_num))
         raise e
     
