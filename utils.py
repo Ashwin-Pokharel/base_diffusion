@@ -43,7 +43,7 @@ def kl_normal(mean1, logvar1, mean2, logvar2):
         for x in (logvar1, logvar2)
     ]
 
-    return 0.5 * ( -1.0 + logvar2 - logvar1 + th.exp(logvar1 - logvar2) + ((mean2 - mean1)**2) / th.exp(logvar2))
+    return 0.5 * ( -1.0 + logvar2 - logvar1 + th.exp(logvar1 - logvar2) + ((mean1 - mean2)**2) / th.exp(-logvar2))
 
 def approx_standard_normal_cdf(x):
     """
@@ -339,7 +339,6 @@ class DiffusionModel:
         if noise is not None:
             img = noise 
         else:
-            print(shape)
             img = th.randn(*shape)
         
         indices = list(range(self.num_timesteps))[::-1] #going from max_timestamp-1 to 0 aka noise to x{t_0}

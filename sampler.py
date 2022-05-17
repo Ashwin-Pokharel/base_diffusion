@@ -23,9 +23,9 @@ from torchvision import utils as torchVisionUtils
 
 
 
-def generate_sample(model_path: str, num_samples:int, batch: int, image_size, output_path:str , save_individually:bool, epoch=None):
+def generate_sample(model_path: str, num_samples:int, batch: int, image_size:tuple[int , int] ,  output_path:str , save_individually:bool, epoch=None):
     try:
-        model =  TimeUnet(image_size=( 48 , 48) , in_channels=1 , model_channels=128, out_channels=3 , num_res_blocks=2, channel_mult=(1 , 2 , 2 , 2) , attention_resolutions=(16,), num_heads_upsample=1, dropout=0.2)
+        model =  TimeUnet(image_size=image_size, in_channels=1 , model_channels=64, out_channels=1 , num_res_blocks=2, channel_mult=(1, 2, 4, 8) , attention_resolutions=(16,), num_heads_upsample=1, dropout=0.2)
         opt = AdamW(model.parameters(), lr=0.00002, weight_decay=0)
         model_var = utils.ModelVarType.FIXED_SMALL
         model_mean = utils.ModelMeanType.PREVIOUS_X
@@ -52,7 +52,7 @@ def generate_sample(model_path: str, num_samples:int, batch: int, image_size, ou
                 if epoch != None:
                     path = f"sampled_image_0{index}_{epoch}.jpeg"
                 path = os.path.join(output_path , path)
-                torchVisionUtils.save_image(samples , path)
+                torchVisionUtils.save_image(image, path)
        
     except Exception as e:
         print("error")
@@ -62,7 +62,7 @@ def generate_sample(model_path: str, num_samples:int, batch: int, image_size, ou
 
 
 if __name__ == '__main__':
-    generate_sample("/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/diffusion_unet_epoch_12.pth", 1 , 1 , [48 , 48] , "sampled_images/" , True)       
+    generate_sample("/Volumes/Samsung_T5/personal/diffusion_corrected_2_checkpoints/diffusion_unet_step_12000.pth", 1 , 1 , (48 , 48) , "sampled_images/" , True)       
         
 
     

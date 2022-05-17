@@ -2,6 +2,7 @@
 from copy import deepcopy
 import functools
 import os
+from tkinter import N
 import uuid
 
 from numpy.lib.function_base import average
@@ -22,6 +23,7 @@ import warnings
 import logging
 from sampler import generate_sample
 from dotenv import load_dotenv
+import optuna
 
 INITIAL_LOG_LOSS_SCALE = 20.0
 
@@ -71,6 +73,7 @@ class TrainLoop:
         self.running_loss = []
         self.current_loss = None
         load_dotenv()
+        """
         if "RUN_ID" in os.environ:
             self.run_id = os.getenv("RUN_ID")
         else:
@@ -85,15 +88,16 @@ class TrainLoop:
             "batch_size": batch_size,
             "num_steps": num_steps,
         })
-        
+        """
         logging.basicConfig(filename="training_log.txt", encoding='utf-8', level=logging.DEBUG)
         if(checkpoint == True):
             self.load_step(checkpoint_path)
+            
     
     
     def run_step_loop(self):
         logging.debug("Train loop starts here")
-        wandb.run.name = "diffusion_base_normalized_training_1"
+        #wandb.run.name = "diffusion_base_normalized_training_2"
         running_step = self.current_step
         try:
             with trange(self.current_step , self.num_steps , position=0 , unit='steps') as pbar:
@@ -105,12 +109,12 @@ class TrainLoop:
                     if(step % 100 == 0):
                         logging.info(f"Step {step}: current loss: {self.current_loss}")
                     
-                    if(step % 1000 == 0):
-                        self.save_step_checkpoint(step , self.current_loss)
+                    if(step % 500 == 0):
+                        #self.save_step_checkpoint(step , self.current_loss)
                         logging.info(f"Step {step}: current loss: {self.current_loss}")
-                    wandb.log({
-                    "loss": self.current_loss,
-                    })
+                    #wandb.log({
+                    #"loss": self.current_loss,
+                    #})
                     
                     pbar.set_postfix({"loss": self.current_loss})
             
@@ -124,7 +128,7 @@ class TrainLoop:
                 
     def run_loop(self):
         logging.debug("Train loop starts here")
-        wandb.run.name = "diffusion_base_corrected_training__4"
+        wandb.run.name = "diffusion_base_loss_corrected_training_1"
         counter = 1
         try:
             with trange(self.current_epoch+1 , self.num_epochs, position=0 , unit='epoch')as pbar:
@@ -150,6 +154,7 @@ class TrainLoop:
                 
                     
         except Exception as e:
+            print(e)
             self.save_checkpoint(self.current_epoch , self.current_loss)
             raise e
         
@@ -185,7 +190,8 @@ class TrainLoop:
         self.opt.load_state_dict(loaded_model['optimizer_state_dict'])
         self.current_step = loaded_model['step']
         self.current_loss = loaded_model['loss']
-        
+    
+    
                
     def save_checkpoint(self , epoch , loss):
         path =  "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/diffusion_unet_epoch_{0}.pth".format(epoch)
@@ -232,11 +238,10 @@ class TrainLoop:
             th.save( best_model_state, "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/final_unet.pth")
         except Exception as e:
             th.save(self.model , "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/final_unet.pth")
-       
-       
+    
         
 if __name__ == '__main__':
-    checkpoint_path = "/Volumes/Samsung_T5/personal/diffusion_corrected_checkpoints/diffusion_unet_step_11000.pth"
+    checkpoint_path = None
     model =  TimeUnet(image_size=( 48 , 48) , in_channels=1 , model_channels=64, out_channels=1 , num_res_blocks=2, channel_mult=(1, 2, 4, 8) , attention_resolutions=(16,), num_heads_upsample=1, dropout=0.2)
     model_var = utils.ModelVarType.FIXED_SMALL
     model_mean = utils.ModelMeanType.PREVIOUS_X
@@ -249,7 +254,7 @@ if __name__ == '__main__':
     images = _list_image_files_recursively(data_path)
     batch = 48
     dataloader = load_data(data_path , batch , True)
-    trainingLoop = TrainLoop(model , diffusion , dataloader , batch, (48 , 48) , 0 , 0.00002, num_epochs=100, checkpoint=True , checkpoint_path=checkpoint_path, num_steps=700000, resume="must")
+    trainingLoop = TrainLoop(model , diffusion , dataloader , batch, (48 , 48) , 0 , 1e-5, num_epochs=100, checkpoint=False , checkpoint_path=checkpoint_path, num_steps=700000, resume=False)
     #print(data.shape)
     trainingLoop.run_step_loop()
     
