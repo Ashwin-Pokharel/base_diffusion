@@ -1,1 +1,21 @@
-
+DEBUG:root:Train loop starts here
+INFO:root:Step 0: current loss: 150.87356567382812
+INFO:root:Step 0: current loss: 150.87356567382812
+DEBUG:root:Train loop starts here
+DEBUG:root:Train loop starts here
+DEBUG:root:Train loop starts here
+DEBUG:root:Train loop starts here
+DEBUG:root:Train loop starts here
+INFO:root:Step 0: current loss: 0.007401824928820133
+INFO:root:Step 0: current loss: 0.007401824928820133
+DEBUG:root:Train loop starts here
+INFO:root:Step 0: current loss: 0.007976780645549297
+INFO:root:sample generated successfully
+INFO:root:Step 0: current loss: 0.007976780645549297
+INFO:root:Step 100: current loss: 0.006858149077743292
+INFO:root:Step 200: current loss: 0.005839040037244558
+INFO:root:Step 300: current loss: 0.0045446897856891155
+INFO:root:Step 400: current loss: 0.003891271771863103
+INFO:root:Step 500: current loss: 0.003987351898103952
+INFO:root:sample generated successfully
+INFO:root:Step 500: current loss: 0.003987351898103952

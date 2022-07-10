@@ -4,5 +4,7 @@ images/
 __pycache__/
 wandb/
 samples/
+sampled_images/*
+.vscode/*
 
 

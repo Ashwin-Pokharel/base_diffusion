@@ -73,14 +73,14 @@ class TrainLoop:
         self.running_loss = []
         self.current_loss = None
         load_dotenv()
-        """
+        
         if "RUN_ID" in os.environ:
             self.run_id = os.getenv("RUN_ID")
         else:
             self.run_id = wandb.util.generate_id()
             with open(".env", "w") as f:
                 f.write("RUN_ID={0}".format(self.run_id))
-                
+        
         self.run = wandb.init(project="diffusion_base", entity="ashwin_pokharel",id=self.run_id , resume=resume)
         wandb.config.update({
             "learning_rate": self.lr,
@@ -88,7 +88,7 @@ class TrainLoop:
             "batch_size": batch_size,
             "num_steps": num_steps,
         })
-        """
+        
         logging.basicConfig(filename="training_log.txt", encoding='utf-8', level=logging.DEBUG)
         if(checkpoint == True):
             self.load_step(checkpoint_path)
@@ -97,7 +97,7 @@ class TrainLoop:
     
     def run_step_loop(self):
         logging.debug("Train loop starts here")
-        #wandb.run.name = "diffusion_base_normalized_training_2"
+        wandb.run.name = "diffusion_base_loss_corrected_training_2"
         running_step = self.current_step
         try:
             with trange(self.current_step , self.num_steps , position=0 , unit='steps') as pbar:
@@ -110,11 +110,11 @@ class TrainLoop:
                         logging.info(f"Step {step}: current loss: {self.current_loss}")
                     
                     if(step % 500 == 0):
-                        #self.save_step_checkpoint(step , self.current_loss)
+                        self.save_step_checkpoint(step , self.current_loss)
                         logging.info(f"Step {step}: current loss: {self.current_loss}")
-                    #wandb.log({
-                    #"loss": self.current_loss,
-                    #})
+                    wandb.log({
+                    "loss": self.current_loss,
+                    })
                     
                     pbar.set_postfix({"loss": self.current_loss})
             
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     checkpoint_path = None
     model =  TimeUnet(image_size=( 48 , 48) , in_channels=1 , model_channels=64, out_channels=1 , num_res_blocks=2, channel_mult=(1, 2, 4, 8) , attention_resolutions=(16,), num_heads_upsample=1, dropout=0.2)
     model_var = utils.ModelVarType.FIXED_SMALL
-    model_mean = utils.ModelMeanType.PREVIOUS_X
+    model_mean = utils.ModelMeanType.START_X
     loss_type = utils.LossType.KL
     beta = utils.get_linear_beta_schedule(1000)
     diffusion = utils.DiffusionModel(betas=  beta ,model_var_type= model_var ,model_mean_type= model_mean, loss_type= loss_type)
